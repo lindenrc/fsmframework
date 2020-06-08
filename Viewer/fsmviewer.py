@@ -12,19 +12,39 @@ from fsmdisplay import FsmDisplay
 
 class FsmFrame(threading.Thread):
 
-	def __init__(self, fsm, dsp):
+	def __init__(self):
 		threading.Thread.__init__(self)
-		self.fsm = fsm
-		self.dsp = dsp
+		self.fsm = 0
+		self.dsp = 0
+		self.deviceList = []
 		self.canvas = 0
+		self.isLoaded = False
 		self.isStarted = False
 		self.start()
 
 	def callback(self):
 		self.root.quit()
 
-	def clicked(self):
-		self.isStarted = True
+	def loadFsm(self):
+		self.isLoaded = True
+		self.fsm = getCountdownDemo()
+		self.deviceList = self.fsm.setup()
+		self.dsp = FsmDisplay(self.fsm.name, [1000, 600])
+		self.dsp.setup(self.fsm)
+
+		self.root.title(self.dsp.name)
+		self.canvas = tk.Canvas(self.root, width=self.dsp.bounds[0], height=self.dsp.bounds[1])
+		self.canvas.pack(side=tk.LEFT)
+
+		self.drawTransitions()
+		self.drawStates()
+		self.drawInputs()
+	
+	def startFsm(self):
+		if self.isLoaded:
+			self.isStarted = True
+		else:
+			print('No Displays Loaded')
 		
 	def showTransition(self, from_index, to_index):
 		if from_index != to_index and from_index >= 0:
@@ -87,7 +107,7 @@ class FsmFrame(threading.Thread):
 		
 	def drawStates(self):
 		for state_index in range( len( self.dsp.states ) ):
-			self.drawState( state_index, state_index == dsp.startState )
+			self.drawState( state_index, state_index == self.dsp.startState )
 	
 	def drawTransitions(self):
 		for state in self.dsp.states:
@@ -96,17 +116,18 @@ class FsmFrame(threading.Thread):
 	
 	def drawInputs(self):
 		frame = tk.Frame(self.root, relief=tk.RAISED, borderwidth=1)
-		frame.pack(fill=tk.BOTH, side=tk.RIGHT, expand=True)
-		label = tk.Label(frame, text="Inputs")
+		frame.pack(fill = tk.Y, side=tk.RIGHT, expand=True)
+		label = tk.Label(frame, text="Fsm Inputs")
 		label.pack()
 		for input in self.dsp.inputs:
-			button = tk.Button(frame, text="Send", command = lambda: self.send( input.parameters[0], text.get()))
+			row = tk.Frame(frame, relief=tk.RAISED, borderwidth=1)
+			row.pack()
+			button = tk.Button(row, text="Send", command = lambda: self.send( input.parameters[0], text.get()))
 			button.pack(side=tk.RIGHT)
-			text = tk.Entry(frame, width=10)
+			text = tk.Entry(row, width=10)
 			text.pack(side=tk.RIGHT)
-			label = tk.Label(frame, text=input.parameters[1])
+			label = tk.Label(row, text=input.parameters[1])
 			label.pack(side=tk.RIGHT)
-
 	def send(self, key, value):
 		try:
 			self.fsm.setUserInput(key, float(value))
@@ -117,16 +138,20 @@ class FsmFrame(threading.Thread):
 	def run(self):
 		self.root = tk.Tk()
 		self.root.protocol("WM_DELETE_WINDOW", self.callback)
-		self.root.title(self.dsp.name)
-		b = tk.Button(self.root, text="Start", command = self.clicked)
-		b.pack()
-		
-		self.canvas = tk.Canvas(self.root, width=self.dsp.bounds[0], height=self.dsp.bounds[1])
-		self.canvas.pack(side=tk.LEFT)
+		top = tk.Frame(self.root, width = 800, height = 200, relief=tk.RAISED, borderwidth=1)
+		top.pack(fill=tk.BOTH, expand=True)
 
-		self.drawTransitions()
-		self.drawStates()
-		self.drawInputs()
+		load = tk.Button(top, text="Load Fsm", command = self.loadFsm)
+		load.pack(side=tk.LEFT)
+		start = tk.Button(top, text="Start Fsm", command = self.startFsm)
+		start.pack(side=tk.LEFT)
+		
+		#self.canvas = tk.Canvas(self.root, width=self.dsp.bounds[0], height=self.dsp.bounds[1])
+		#self.canvas.pack(side=tk.LEFT)
+
+		#self.drawTransitions()
+		#self.drawStates()
+		#self.drawInputs()
 		
 		self.root.mainloop()
 
@@ -139,7 +164,9 @@ async def my_app(con):
 	async with acsys.dpm.DPMContext(con) as dpm:
 
         # Add acquisition requests
-
+		fsm = fsmFrame.fsm
+		deviceList = fsmFrame.deviceList
+		
 		count = 0
 		for device in deviceList:
 			await dpm.add_entry(count, device)
@@ -156,10 +183,13 @@ async def my_app(con):
 		async for ii in dpm:
 			fsm.setDevice( ii.meta['name'], ii.data )
 			fsm.execute()
-			fsmFrame.showTransition(fsm.previousState, fsm.currentState)
+			fsmFrame.fsmFrame.showTransition(fsm.previousState, fsm.currentState)
 			if fsm.previousState != fsm.currentState:
 				fsmFrame.showOutput(fsm.previousState, fsm.states[fsm.previousState].displayMap)			
 			fsmFrame.showOutput(fsm.currentState, fsm.states[fsm.currentState].displayMap)
+
+
+#Launch FsmViewer
 
 FORMAT = '%(asctime)-15s [%(levelname)s] %(message)s'
 logging.basicConfig(format=FORMAT)
@@ -167,12 +197,8 @@ logging.basicConfig(format=FORMAT)
 log = logging.getLogger('acsys')
 log.setLevel(logging.INFO)
 
-fsm = getCountdownDemo()
-deviceList = fsm.setup()
-dsp = FsmDisplay(fsm.name, [1000, 600])
-dsp.setup(fsm)
 
-fsmFrame = FsmFrame(fsm, dsp)
+fsmFrame = FsmFrame()
 
 while not fsmFrame.isStarted:
 	time.sleep(1)
