@@ -1,6 +1,7 @@
 # Run tkinter code in another thread
 
 import tkinter as tk
+from tkinter.filedialog import askopenfilename
 import threading
 import logging
 import acsys.dpm
@@ -9,6 +10,7 @@ from fsmemulator import getSupercycleDemo
 from fsmemulator import getCountdownDemo
 from fsmemulator import FsmEmulator
 from fsmdisplay import FsmDisplay
+from fsmxmlparser import parse
 
 class FsmFrame(threading.Thread):
 
@@ -16,8 +18,8 @@ class FsmFrame(threading.Thread):
 		threading.Thread.__init__(self)
 		self.fsm = 0
 		self.dsp = 0
-		self.deviceList = []
 		self.canvas = 0
+		self.widgets = []
 		self.isLoaded = False
 		self.isStarted = False
 		self.start()
@@ -25,12 +27,29 @@ class FsmFrame(threading.Thread):
 	def callback(self):
 		self.root.quit()
 
-	def loadFsm(self):
-		self.isLoaded = True
-		self.fsm = getCountdownDemo()
-		self.deviceList = self.fsm.setup()
-		self.dsp = FsmDisplay(self.fsm.name, [1000, 600])
+	def loadDemo(self):
+		self.fsm = getSupercycleDemo()
+		self.fsm.setup()
+		self.dsp = FsmDisplay(self.fsm.name, 'Rectangle', [400, 400])
 		self.dsp.setup(self.fsm)
+		
+		self.root.title(self.dsp.name)
+		self.canvas = tk.Canvas(self.root, width=self.dsp.bounds[0], height=self.dsp.bounds[1])
+		self.canvas.pack(side=tk.LEFT)
+
+		self.drawTransitions()
+		self.drawStates()
+		self.drawInputs()
+		
+	def loadFsm(self):
+		
+		self.isLoaded = True
+		self.deleteWidgets()
+		filename = askopenfilename()
+		result = parse(filename)
+		
+		self.fsm = result[0]
+		self.dsp = result[1]
 
 		self.root.title(self.dsp.name)
 		self.canvas = tk.Canvas(self.root, width=self.dsp.bounds[0], height=self.dsp.bounds[1])
@@ -40,11 +59,19 @@ class FsmFrame(threading.Thread):
 		self.drawStates()
 		self.drawInputs()
 	
+	def deleteWidgets(self):
+		for widget in self.widgets:
+			self.canvas.delete(widget)
+		self.widgets = []
+			
 	def startFsm(self):
 		if self.isLoaded:
 			self.isStarted = True
 		else:
 			print('No Displays Loaded')
+		
+	def stopFsm(self):
+		print('Stop Fsm')
 		
 	def showTransition(self, from_index, to_index):
 		if from_index != to_index and from_index >= 0:
@@ -80,7 +107,10 @@ class FsmFrame(threading.Thread):
 		state.stateTags[0] = self.canvas.create_rectangle(state.bounds[0], state.bounds[1], state.bounds[0]+state.bounds[2], state.bounds[1]+state.bounds[3], fill=color)
 		state.stateTags[1] = self.canvas.create_rectangle(state.bounds[0] + border + 1, state.bounds[1] + border + 1, state.bounds[0]+state.bounds[2]-2*border, state.bounds[1]+state.bounds[3]-2*border, fill="white")
 		state.stateTags[2] = self.canvas.create_text(xText, yText, text=state.name )
-
+		self.widgets.append( state.stateTags[0])
+		self.widgets.append( state.stateTags[1])
+		self.widgets.append( state.stateTags[2])
+		
 	def drawTransition(self, from_index, to_index):
 		fromState = self.dsp.states[from_index]
 		toState = self.dsp.states[to_index]
@@ -88,7 +118,7 @@ class FsmFrame(threading.Thread):
 		y1 = fromState.bounds[1] + fromState.bounds[3]/2
 		x2 = toState.bounds[0] + toState.bounds[2]/2
 		y2 = toState.bounds[1] + toState.bounds[3]/2
-		self.canvas.create_line(x1, y1, x2, y2, fill="black", width=3)
+		self.widgets.append( self.canvas.create_line(x1, y1, x2, y2, fill="black", width=3) )
 		
 	def drawOutput(self, state_index, output_index, value):
 		state = self.dsp.states[state_index]
@@ -104,7 +134,8 @@ class FsmFrame(threading.Thread):
 			
 		state.outputTags = [0, 0, 0, 0]
 		state.outputTags[output_index] = self.canvas.create_text(xText, yText, text=output.parameters[0].format( value ) )		
-		
+		self.widgets.append( state.outputTags[output_index])
+
 	def drawStates(self):
 		for state_index in range( len( self.dsp.states ) ):
 			self.drawState( state_index, state_index == self.dsp.startState )
@@ -115,10 +146,15 @@ class FsmFrame(threading.Thread):
 				self.drawTransition(transition.from_index, transition.to_index)
 	
 	def drawInputs(self):
+		if len(self.dsp.inputs) == 0:
+			return
 		frame = tk.Frame(self.root, relief=tk.RAISED, borderwidth=1)
 		frame.pack(fill = tk.Y, side=tk.RIGHT, expand=True)
 		label = tk.Label(frame, text="Fsm Inputs")
 		label.pack()
+		
+		self.widgets.append(frame)
+		self.widgets.append(label)
 		for input in self.dsp.inputs:
 			row = tk.Frame(frame, relief=tk.RAISED, borderwidth=1)
 			row.pack()
@@ -128,6 +164,8 @@ class FsmFrame(threading.Thread):
 			text.pack(side=tk.RIGHT)
 			label = tk.Label(row, text=input.parameters[1])
 			label.pack(side=tk.RIGHT)
+			self.widgets.append(row)
+			
 	def send(self, key, value):
 		try:
 			self.fsm.setUserInput(key, float(value))
@@ -145,13 +183,10 @@ class FsmFrame(threading.Thread):
 		load.pack(side=tk.LEFT)
 		start = tk.Button(top, text="Start Fsm", command = self.startFsm)
 		start.pack(side=tk.LEFT)
+		stop = tk.Button(top, text="Stop Fsm", command = self.stopFsm)
+		stop.pack(side=tk.LEFT)
 		
-		#self.canvas = tk.Canvas(self.root, width=self.dsp.bounds[0], height=self.dsp.bounds[1])
-		#self.canvas.pack(side=tk.LEFT)
-
-		#self.drawTransitions()
-		#self.drawStates()
-		#self.drawInputs()
+		self.loadDemo()
 		
 		self.root.mainloop()
 
@@ -165,7 +200,7 @@ async def my_app(con):
 
         # Add acquisition requests
 		fsm = fsmFrame.fsm
-		deviceList = fsmFrame.deviceList
+		deviceList = fsm.deviceList
 		
 		count = 0
 		for device in deviceList:
@@ -183,7 +218,7 @@ async def my_app(con):
 		async for ii in dpm:
 			fsm.setDevice( ii.meta['name'], ii.data )
 			fsm.execute()
-			fsmFrame.fsmFrame.showTransition(fsm.previousState, fsm.currentState)
+			fsmFrame.showTransition(fsm.previousState, fsm.currentState)
 			if fsm.previousState != fsm.currentState:
 				fsmFrame.showOutput(fsm.previousState, fsm.states[fsm.previousState].displayMap)			
 			fsmFrame.showOutput(fsm.currentState, fsm.states[fsm.currentState].displayMap)

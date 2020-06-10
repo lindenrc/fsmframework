@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- saved from url=(0014)about:internet -->
+<fsm name="Countdown Demo" startState="0" endState="-1" layout = "Rectangle" bounds="600,600">
+	<state name="State 1" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 5" nextState="1">
+			<input source="USER" parameters="INPUT,Start Time" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 2" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 10" nextState="3">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 10" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 50" nextState="0">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 3" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 15" nextState="5">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 9" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 45" nextState="2">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 4" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 20" nextState="7">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 8" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 40" nextState="4">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 5" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 25" nextState="9">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 7" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 35" nextState="6">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	<state name="State 6" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 30" nextState="8">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+</fsm>

@@ -36,8 +36,10 @@ class FsmStateDisplay:
 
 		
 class FsmDisplay:
-	def __init__(self, name, bounds):
+	
+	def __init__(self, name, layout,  bounds):
 		self.name = name
+		self.layout = layout
 		self.bounds = bounds
 		self.startState = -1
 		self.endState = -1
@@ -50,6 +52,37 @@ class FsmDisplay:
 	def addInput(self, input):
 		self.inputs.append(input)
 		
+	def setupPlacement(self):
+		if self.layout == 'Rectangle':
+			hgt = 50
+			sepX = 20
+			sepY = 50
+			leftX = sepX
+			rightX = self.bounds[0]-sepX-self.states[0].bounds[2]
+			upY = sepY
+			left = True
+		
+			for state in self.states:
+				state.bounds[0] = leftX
+				state.bounds[1] = upY
+				if not left:
+					state.bounds[0] = rightX
+					upY = upY + sepY + hgt
+				left = not left
+			
+	
+	def setupInputs(self, fsm):
+		inputList = fsm.getAllInputs('USER')
+		found = []
+		input_index = 0
+		for input in inputList:
+			if not ( input.parameters[0] in found  ):
+				found.append( input.parameters[0] )
+				input_index = input_index + 1
+				inputDisplay = FsmInputDisplay('TEXT', [input.parameters[0], input.parameters[1]] )
+				self.addInput(inputDisplay)
+				
+	
 	def setup(self, fsm):
 		wth = 100
 		hgt = 50
@@ -80,13 +113,4 @@ class FsmDisplay:
 			state_index = state_index + 1
 			left = not left
 			
-		inputList = fsm.getAllInputs('USER')
-		found = []
-		input_index = 0
-		for input in inputList:
-			if not ( input.parameters[0] in found  ):
-				found.append( input.parameters[0] )
-				input_index = input_index + 1
-				inputDisplay = FsmInputDisplay('TEXT', [input.parameters[0], input.parameters[1]] )
-				self.addInput(inputDisplay)
-				
+		self.setupInputs(fsm)

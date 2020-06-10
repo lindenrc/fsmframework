@@ -5,7 +5,11 @@ class DeviceReading:
 	def __init__(self, data):
 		self.data = data
 		self.isStale = False
-		
+
+#INPUT = ( SOURCE, PARAMETERS )
+#READING , (G:SCTIME)
+#INTERNAL , (NAME)
+#USER, (NAME)	
 class FsmInput:
 	def __init__(self, source, parameters):
 		self.source = source
@@ -28,13 +32,25 @@ class FsmExpression:
 		
 	def execute(self):
 		try:
-			if len(self.inputs) == 0:
-				return simple_eval(self.expressionString)
-			else:
-				datum = []
-				for input in self.inputs:
-					datum.append(input.execute())
-				return simple_eval( self.expressionString, names={"x1":datum[0]})
+			mapping = {}
+			inp_index = 1
+			for input in self.inputs:
+				key = "x"+str(inp_index)
+				inp_index = inp_index + 1
+				mapping[key] = input.execute()
+			expressions = []
+			for expression in self.expressionString.split(";"):
+				if len( expression.strip() ) > 0:
+					expressions.append( expression.strip() )
+			result = 0
+			for expression in expressions:
+				split = expression.split(":=")
+				if len(split) == 1:
+					result = simple_eval( split[0], names=mapping )
+				elif len(split) == 2:
+					result = simple_eval( split[1], names=mapping )
+					mapping[split[0]] = result
+			return result
 		except Exception as e:
 			print('Exception: ', self.expressionString, ' : ', str(e))
 			return 0
@@ -49,7 +65,12 @@ class FsmCondition:
 	def execute(self):
 		return self.expression.execute()
 		
-		
+
+#OUTPUT = (DESTINATION, PARAMETERS)
+#INTERNAL, (NAME)
+#PRINTOUT,()
+#DISPLAY, (NAME)
+#SETTING, (Z:CACHE)		
 class FsmOutput:
 	def __init__(self, destination, parameters, expressionString):
 		self.destination = destination
@@ -124,6 +145,8 @@ class FsmState:
 		return currentState
 
 class FsmEmulator:
+
+
 	def __init__(self, name, startState, endState):
 		self.name = name
 		self.startState = startState
@@ -133,6 +156,7 @@ class FsmEmulator:
 		self.isNewState = True
 		self.isRunning = True
 		self.states = []
+		self.deviceList = []
 		self.deviceMap = {}
 		self.internalMap = {}
 		self.inputMap = {}
@@ -260,7 +284,7 @@ class FsmEmulator:
 			for output in outputList:
 				output.displayMap = self.states[state_index].displayMap
 
-		return list
+		self.deviceList = list
 		
 	def setUserInput(self, key, value):
 		self.inputMap[key] = float(value)
