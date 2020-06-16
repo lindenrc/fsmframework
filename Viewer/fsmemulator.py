@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from simpleeval import simple_eval
+import time
 
 class DeviceReading:
 	def __init__(self, data):
@@ -33,11 +34,13 @@ class FsmExpression:
 	def execute(self):
 		try:
 			mapping = {}
+			mapping['time'] = 1000*time.time()
 			inp_index = 1
 			for input in self.inputs:
 				key = "x"+str(inp_index)
 				inp_index = inp_index + 1
 				mapping[key] = input.execute()
+				
 			expressions = []
 			for expression in self.expressionString.split(";"):
 				if len( expression.strip() ) > 0:
@@ -77,6 +80,7 @@ class FsmOutput:
 		self.parameters = parameters
 		self.expression = FsmExpression(expressionString)
 		self.internalMap = {}
+		self.settingValuesList = []
 		self.displayMap = {}
 	
 	def addInput(self, input):
@@ -91,7 +95,7 @@ class FsmOutput:
 		elif self.destination == 'DISPLAY':
 			self.displayMap[self.parameters[0]] = result
 		elif self.destination == 'SETTING':
-			print('Setting = ', result)
+			self.settingValuesList.append(parameters[1]+":"+result)
 
 class FsmAction:
 	def __init__(self, when, conditionString):
@@ -147,16 +151,19 @@ class FsmState:
 class FsmEmulator:
 
 
-	def __init__(self, name, startState, endState):
+	def __init__(self, name, startState, endState, parameters):
 		self.name = name
 		self.startState = startState
 		self.endState = endState
+		self.parameters = parameters
 		self.previousState = -1
 		self.currentState = startState
 		self.isNewState = True
 		self.isRunning = True
 		self.states = []
-		self.deviceList = []
+		self.readingList = []
+		self.settingList = []
+		self.settingValuesList = []
 		self.deviceMap = {}
 		self.internalMap = {}
 		self.inputMap = {}
@@ -251,53 +258,75 @@ class FsmEmulator:
 	def loadDeviceInputs(self, currentState):
 		inputList = self.getStateInputs(currentState, 'READING')
 		for input in inputList:
-			if not ( input.parameters[0] in self.deviceMap ):
+			if not ( input.parameters[1] in self.deviceMap ):
 				return False
 			else:
-				deviceReading = self.deviceMap[input.parameters[0]]
+				deviceReading = self.deviceMap[input.parameters[1]]
 				if deviceReading.isStale:
 					return False
 				
 		for input in inputList:
-			deviceReading = self.deviceMap[input.parameters[0]]
+			deviceReading = self.deviceMap[input.parameters[1]]
 			input.load(deviceReading.data)
 			deviceReading.isStale = True
-			self.deviceMap[input.parameters[0]] = deviceReading
+			self.deviceMap[input.parameters[1]] = deviceReading
 			
 		return True
 		
 	def setup(self):
 		list = []
+		ftd = 1000
+		if len(self.parameters) > 0:
+			ftd = self.parameters[0]
 		inputList = self.getAllInputs('READING')
+		tag = 0
 		for input in inputList:
-			if not ( input.parameters[0] in list ):
-				list.append( input.parameters[0] )
+			device = input.parameters[0]+'@P,'+str(ftd)
+			if not ( device in list ):
+				input.parameters[1] = tag
+				tag = tag + 1
+				list.append( device )
+			else:
+				input.parameters[1] = list.index( device )
+				
 		if len(list) == 0:
-			list.append('M:OUTTMP')
-			
+			list.append('M:OUTTMP'+'@P,'+str(ftd))
+					
 		outputList = self.getAllOutputs('INTERNAL')
 		for output in outputList:
 			output.internalMap = self.internalMap
+	
+		tag = 0
+		outputList = self.getAllOutputs('SETTING')
+		for output in outputList:
+			device = output.parameters[0]
+			if device in self.settingList:
+				output.parameters[1] = self.settingList.index(device)
+			else:
+				output.parameters[1] = tag
+				tag = tag + 1
+				self.settingList.append(device)
+			output.settingValuesList = self.settingValuesList
 	
 		for state_index in range( len(self.states) ):
 			outputList = self.getStateOutputs(state_index, 'DISPLAY')
 			for output in outputList:
 				output.displayMap = self.states[state_index].displayMap
 
-		self.deviceList = list
+		self.readingList = list
 		
 	def setUserInput(self, key, value):
 		self.inputMap[key] = float(value)
 	
-	def setDevice(self, device, reading):
-		if device in self.deviceMap:
-			deviceReading = self.deviceMap[device]
+	def setDevice(self, tag, reading):
+		if tag in self.deviceMap:
+			deviceReading = self.deviceMap[tag]
 			deviceReading.data = reading
 			deviceReading.isStale = False
-			self.deviceMap[device] = deviceReading
+			self.deviceMap[tag] = deviceReading
 		else:
 			deviceReading = DeviceReading(reading)
-			self.deviceMap[device] = deviceReading
+			self.deviceMap[tag] = deviceReading
 
 		
 	def execute(self):
@@ -310,7 +339,7 @@ class FsmEmulator:
 			self.currentState = nextState
 			
 def getDemo():
-	fsm = FsmEmulator('Demo', 0, 1)
+	fsm = FsmEmulator('Demo', 0, 1, [])
 	start_s = FsmState('Start')
 	s_tra = FsmTransition('True', 1)
 	s_act = FsmAction('WITHIN_STATE', 'True')
@@ -338,16 +367,16 @@ def getDemo():
 	return fsm
 
 def getSupercycleDemo():
-	fsm = FsmEmulator('Supercycle Demo', 0, -1)
+	fsm = FsmEmulator('Supercycle Demo', 0, -1, [])
 	
 	start_s = FsmState('Start')
 	s_tra = FsmTransition('x1 > 30', 1)
-	st_in = FsmInput("READING", ["G:SCTIME"])
+	st_in = FsmInput("READING", ["G:SCTIME","0"])
 	s_tra.condition.addInput(st_in)
 	
-	s_act = FsmAction('ON_ENTERING_STATE', 'True')
-	s_out = FsmOutput('PRINTOUT', [], 'x1')
-	s_in = FsmInput("READING", ["G:SCTIME"])
+	s_act = FsmAction('WITHIN_STATE', 'True')
+	s_out = FsmOutput('DISPLAY', ["Output"], 'y := x1')
+	s_in = FsmInput("READING", ["P:ISSTAT.STATUS.RAW","0"])
 	s_out.addInput(s_in)
 
 	s_act.addOutput(s_out)
@@ -356,12 +385,12 @@ def getSupercycleDemo():
 
 	end_s = FsmState('End')
 	e_tra = FsmTransition('x1 < 30', 0)
-	et_in = FsmInput("READING", ["G:SCTIME"])
+	et_in = FsmInput("READING", ["G:SCTIME","0"])
 	e_tra.condition.addInput(et_in)
 	
-	e_act = FsmAction('ON_ENTERING_STATE', 'True')
-	e_out = FsmOutput('PRINTOUT', [], 'x1')
-	e_in = FsmInput("READING", ["G:SCTIME"])
+	e_act = FsmAction('WITH_STATE', 'True')
+	e_out = FsmOutput('DISPLAY', ["Output"], 'y := x1')
+	e_in = FsmInput("READING", ["G:SCTIME","0"])
 	e_out.addInput(e_in)
 
 	e_act.addOutput(e_out)
@@ -374,7 +403,7 @@ def getSupercycleDemo():
 	
 	
 def getCountdownDemo():
-	fsm = FsmEmulator('Countdown Demo', 0, -1)
+	fsm = FsmEmulator('Countdown Demo', 0, -1, [])
 	next = [1,3,0,5,2,7,4,9,6,8]
 	dlys = [0, 5, 45, 10, 40, 15, 35, 20, 30, 25]
 	for state_index in range(10):

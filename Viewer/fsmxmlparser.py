@@ -5,12 +5,12 @@ from fsmdisplay import *
 import xml.etree.ElementTree as et
 
 def parse(filename):
-	fsm = FsmEmulator("",0,-1)
+	fsm = FsmEmulator("",0,-1,[])
 	dsp = FsmDisplay("",'Rectangle', [])
 	try:
 		tree = et.parse(filename)
 		root = tree.getroot()
-		fsm = FsmEmulator( root.attrib['name'], int(root.attrib['startState']), int(root.attrib['endState']) )
+		fsm = FsmEmulator( root.attrib['name'], int(root.attrib['startState']), int(root.attrib['endState']), root.get('parameters').split(',') )
 		bounds = []
 		for item in root.attrib['bounds'].split(","):
 			bounds.append( float(item) )
@@ -30,13 +30,18 @@ def parse(filename):
 				for input in transition.findall('input'):
 					parameters = input.get('parameters').split(",")
 					fsm.states[sta_index].transitions[tra_index].condition.addInput( FsmInput( input.get('source'), parameters) )
+				for connection in transition.findall('connection'):
+					bounds = []
+					for item in connection.get('bounds').split(","):
+						bounds.append( float(item) )
+					dsp.states[sta_index].transition[tra_index].addConnection( FsmConnectionDisplay(bounds) )
 				tra_index = tra_index + 1
 			act_index = 0;
 			for action in state.findall('action'):
 				fsm.states[sta_index].addAction( FsmAction(action.get('when'), action.get('expression')) )
 				for input in action.findall('input'):
 					parameters = input.get('parameters').split(",")
-					fsm.states[sta_index].actions[tra_index].condition.addInput( FsmInput( input.get('source'), parameters) )
+					fsm.states[sta_index].actions[act_index].condition.addInput( FsmInput( input.get('source'), parameters) )
 				out_index = 0
 				for output in action.findall('output'):
 					parameters = output.get('parameters').split(",")
@@ -59,4 +64,4 @@ def parse(filename):
 	
 	return [fsm, dsp]
 	
-	
+#result = parse("../data/pxieprotection.xml")

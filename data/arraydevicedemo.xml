@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- saved from url=(0014)about:internet -->
+<fsm name="Array Device Demo" startState="0" endState="-1" layout = "Rectangle" bounds="600,600">
+	<state name="State 1" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 5" nextState="1">
+			<input source="USER" parameters="INPUT,Start Time" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="Z:TLGT01[0:1899]" />
+			</output>
+		</action>
+	</state>
+	<state name="State 2" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 > 30" nextState="0">
+			<input source="READING" parameters="G:SCTIME" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="G:SCTIME" />
+			</output>
+		</action>
+	</state>
+	
+</fsm>

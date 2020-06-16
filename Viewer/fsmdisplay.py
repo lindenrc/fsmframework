@@ -13,11 +13,19 @@ class FsmOutputDisplay:
 		self.type = type
 		self.parameters = parameters
 		
+class FsmConnectionDisplay:
+	def __init__(self, bounds):
+		self.bounds = bounds
+		
 class FsmTransitionDisplay:
 	def __init__(self, from_index, to_index, parameters):
 		self.from_index = from_index
 		self.to_index = to_index
 		self.parameters = parameters
+		self.connections = []
+		
+	def addConnection(self, connection):
+		self.connections.append(connection)
 		
 class FsmStateDisplay:
 	def __init__(self, name, bounds):

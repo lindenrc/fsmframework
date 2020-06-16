@@ -28,6 +28,8 @@ class FsmFrame(threading.Thread):
 		self.root.quit()
 
 	def loadDemo(self):
+	
+		self.isLoaded = True
 		self.fsm = getSupercycleDemo()
 		self.fsm.setup()
 		self.dsp = FsmDisplay(self.fsm.name, 'Rectangle', [400, 400])
@@ -63,6 +65,8 @@ class FsmFrame(threading.Thread):
 		for widget in self.widgets:
 			self.canvas.delete(widget)
 		self.widgets = []
+		self.canvas.delete('all')
+		self.canvas.destroy()
 			
 	def startFsm(self):
 		if self.isLoaded:
@@ -90,7 +94,7 @@ class FsmFrame(threading.Thread):
 		state = self.dsp.states[state_index]
 		color = "black"
 		border = 3
-		sepX = 50
+		sepX = state.bounds[2]/2
 		sepY = -4
 		xText = state.bounds[0] + sepX
 		yText = state.bounds[1] + state.bounds[3]/2 + sepY
@@ -107,34 +111,49 @@ class FsmFrame(threading.Thread):
 		state.stateTags[0] = self.canvas.create_rectangle(state.bounds[0], state.bounds[1], state.bounds[0]+state.bounds[2], state.bounds[1]+state.bounds[3], fill=color)
 		state.stateTags[1] = self.canvas.create_rectangle(state.bounds[0] + border + 1, state.bounds[1] + border + 1, state.bounds[0]+state.bounds[2]-2*border, state.bounds[1]+state.bounds[3]-2*border, fill="white")
 		state.stateTags[2] = self.canvas.create_text(xText, yText, text=state.name )
-		self.widgets.append( state.stateTags[0])
-		self.widgets.append( state.stateTags[1])
-		self.widgets.append( state.stateTags[2])
 		
-	def drawTransition(self, from_index, to_index):
-		fromState = self.dsp.states[from_index]
+	def drawTransition(self, from_index, to_index, connections):
+		fromState = self.dsp.states[from_index]		
 		toState = self.dsp.states[to_index]
-		x1 = fromState.bounds[0] + fromState.bounds[2]/2
-		y1 = fromState.bounds[1] + fromState.bounds[3]/2
-		x2 = toState.bounds[0] + toState.bounds[2]/2
-		y2 = toState.bounds[1] + toState.bounds[3]/2
-		self.widgets.append( self.canvas.create_line(x1, y1, x2, y2, fill="black", width=3) )
+		bounds1 = fromState.bounds
+		bounds2 = []
+		for connection in connections:
+			bounds2 = connection.bounds
+			self.drawTransitionBetween(bounds1, bounds2)
+			bounds1 = bounds2
+		bounds2 = toState.bounds
+		self.drawTransitionBetween(bounds1, bounds2)
+
+	def drawTransitionBetween(self, bounds1, bounds2):
+		x1 = bounds1[0] + bounds1[2]/2
+		y1 = bounds1[1] + bounds1[3]/2
+		x2 = bounds2[0] + bounds2[2]/2
+		y2 = bounds2[1] + bounds2[3]/2
+		self.canvas.create_line(x1, y1, x2, y2, fill="black", width=3)
 		
 	def drawOutput(self, state_index, output_index, value):
+	
+		if isinstance(value, list):
+			value = value[0]
+			
 		state = self.dsp.states[state_index]
 		output = state.outputs[output_index]
-		sepX = 50
-		sepY = 10
+		sepX = state.bounds[2]/2
+		sepY = 15
 		textH = 10
+		border = 1
 		xText = state.bounds[0] + sepX
 		yText = state.bounds[1] + state.bounds[3] + sepY + output_index*textH
 		
-		if len(state.outputTags) > output_index:
-			self.canvas.delete(state.outputTags[output_index])
+		if len(state.outputTags) == 0:
+			state.outputTags = [0, 0, 0, 0]
+			state.outputTags[0] = self.canvas.create_rectangle(state.bounds[0], state.bounds[1]+state.bounds[3], state.bounds[0]+state.bounds[2], state.bounds[1]+state.bounds[3]+sepY+2*textH, fill='white')
+			state.outputTags[1] = self.canvas.create_rectangle(state.bounds[0] + border + 1, state.bounds[1]+state.bounds[3] + border + 1, state.bounds[0]+state.bounds[2]-2*border, state.bounds[1]+state.bounds[3]+sepY+2*textH-2*border, fill="cyan")
+		
+		if  not (state.outputTags[output_index+2] == 0 ):
+			self.canvas.delete(state.outputTags[output_index+2])
 			
-		state.outputTags = [0, 0, 0, 0]
-		state.outputTags[output_index] = self.canvas.create_text(xText, yText, text=output.parameters[0].format( value ) )		
-		self.widgets.append( state.outputTags[output_index])
+		state.outputTags[output_index+2] = self.canvas.create_text(xText, yText, text=output.parameters[0].format( value ) )		
 
 	def drawStates(self):
 		for state_index in range( len( self.dsp.states ) ):
@@ -143,7 +162,7 @@ class FsmFrame(threading.Thread):
 	def drawTransitions(self):
 		for state in self.dsp.states:
 			for transition in state.transitions:
-				self.drawTransition(transition.from_index, transition.to_index)
+				self.drawTransition(transition.from_index, transition.to_index, transition.connections)
 	
 	def drawInputs(self):
 		if len(self.dsp.inputs) == 0:
@@ -200,11 +219,14 @@ async def my_app(con):
 
         # Add acquisition requests
 		fsm = fsmFrame.fsm
-		deviceList = fsm.deviceList
 		
 		count = 0
-		for device in deviceList:
+		for device in fsm.readingList:
 			await dpm.add_entry(count, device)
+			count = count + 1
+			
+		count = 0
+		for device in fsm.settingList:
 			count = count + 1
 			
         # Start acquisition
@@ -216,8 +238,16 @@ async def my_app(con):
 		fsmFrame.showTransition(fsm.previousState, fsm.currentState)
 		
 		async for ii in dpm:
-			fsm.setDevice( ii.meta['name'], ii.data )
+			if isinstance(ii, acsys.dpm.ItemData):
+				print(str(ii))
+				#fsm.setDevice( ii.tag, ii.data )
 			fsm.execute()
+			for device in fsm.settingValuesList:
+				split = device.split(',')
+				tag = split[0]
+				value = split[1]
+			fsm.settingValuesList = []
+			
 			fsmFrame.showTransition(fsm.previousState, fsm.currentState)
 			if fsm.previousState != fsm.currentState:
 				fsmFrame.showOutput(fsm.previousState, fsm.states[fsm.previousState].displayMap)			

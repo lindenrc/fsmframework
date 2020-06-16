@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<fsm name="PXIE Protection" startState="0" endState="6" parameters = "1000" layout="Fixed" bounds="800,600">
+    <state name="Start" parameters="{:.3f}" bounds="250,50,100,50">
+        <transition expression="True" nextState="1">
+        </transition>
+        <action when="WITHIN_STATE" expression="True">
+            <output destination="INTERNAL" parameters="COUNTER" expression="y:=0">
+            </output>
+        </action>
+        <action  when="WITHIN_STATE" expression="True">
+            <output destination="INTERNAL" parameters="PL00IXV" expression="y:=x1">
+				<input source="READING" parameters="P:L00IXV,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL0OIFI" expression="y:=x1">
+				<input source="READING" parameters="P:L00IFI,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00PLV" expression="y:=x1">
+				<input source="READING" parameters="P:L00PLV,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00IAV" expression="y:=x1">
+				<input source="READING" parameters="P:L00IAV,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL0OIAI" expression="y:=x1">
+				<input source="READING" parameters="P:L00IAI,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00IBV" expression="y:=x1">
+				<input source="READING" parameters="P:L00IBV,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL0OCXI" expression="y:=x1">
+				<input source="READING" parameters="P:L00CXI,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00CYI" expression="y:=x1">
+				<input source="READING" parameters="P:L00CYI,0" />
+            </output>
+        </action>
+    </state>
+    <state name="Read Parameters" parameters="{:.3f}" bounds="250,150,140,50">
+        <transition expression="True" nextState="2">
+        </transition>
+        <action  when="WITHIN_STATE" expression="True">
+            <output destination="INTERNAL" parameters="PMAXCNT" expression="y:=x1">
+				<input source="READING" parameters="P:MAXCNT,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PISSTAT" expression="y:=x1">
+				<input source="READING" parameters="P:ISSTAT.STATUS,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00WST" expression="y:=x1">
+				<input source="READING" parameters="P:L00WSL,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00WSZ" expression="y:=x1">
+				<input source="READING" parameters="P:L00WSZ,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00H2L" expression="y:=x1">
+				<input source="READING" parameters="P:L00H2L,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00H2Z" expression="y:=x1">
+				<input source="READING" parameters="P:L00H2Z,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00GPP" expression="y:=x1">
+				<input source="READING" parameters="P:L00GPP,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00GPZ" expression="y:=x1">
+				<input source="READING" parameters="P:L00HPZ,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL10WSL" expression="y:=x1">
+				<input source="READING" parameters="P:L10WSL,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00HXZ" expression="y:=x1">
+				<input source="READING" parameters="P:L00HXZ,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL01GPP" expression="y:=x1">
+				<input source="READING" parameters="P:L01GPP,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00WST" expression="y:=x1">
+				<input source="READING" parameters="P:L00WST,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00WTZ" expression="y:=x1">
+				<input source="READING" parameters="P:L00WTZ,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00IFB" expression="y:=x1">
+				<input source="READING" parameters="P:L00IFB,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00IXB" expression="y:=x1">
+				<input source="READING" parameters="P:L00IXB,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00IPB" expression="y:=x1">
+				<input source="READING" parameters="P:L00IPB,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00ISB" expression="y:=1">
+				<input source="READING" parameters="P:L00IFB,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00ISL" expression="y:=1">
+				<input source="READING" parameters="P:L00ISL,0" />
+            </output>
+            <output destination="INTERNAL" parameters="PL00ISZ" expression="y:=x1">
+				<input source="READING" parameters="P:L00ISZ,0" />
+            </output>
+        </action>
+    </state>
+    <state name="Perform Checks" parameters="{:.3f}" bounds="250, 250,140,50">
+        <transition expression="x1 == 0" nextState="5">
+			<input source="INTERNAL" parameters="ISSTATUSOK" />
+        </transition>
+        <transition expression="x1 == 1" nextState="4">
+			<input source="INTERNAL" parameters="ISPRESSUREHIGH" />
+        </transition>
+        <transition expression="x1 == 0" nextState="1">
+			<input source="INTERNAL" parameters="COUNTER" />
+        </transition>
+        <transition expression="not ( x1 == 0 )" nextState="3">
+			<input source="INTERNAL" parameters="COUNTER" />
+        </transition>
+        <action when="WITHIN_STATE" expression="True">
+            <output destination="INTERNAL" parameters="ISSTATUSOK" expression ="rok:= ( x1 and 0xC0DF) &gt; 0;fok := x2 &gt; x3;f1ok := x6 &gt; x3;hok := ( x4 &gt; x5) and (x4 &lt; x7);t1 := x8 &lt;= x9;t2 := x10 &gt;= x11;t3 := x12 and x13 and x14 and x15;y := rok and fok and f1ok and hok and t1 and t2 and t3">
+				<input source="INTERNAL" parameters="PISSTAT" />
+				<input source="INTERNAL" parameters="PL00WSL" />
+				<input source="INTERNAL" parameters="PL00WSZ" />
+				<input source="INTERNAL" parameters="PL00H2L" />
+				<input source="INTERNAL" parameters="PL00H2Z" />
+				<input source="INTERNAL" parameters="PL10WSL" />
+				<input source="INTERNAL" parameters="PL00HXZ" />
+				<input source="INTERNAL" parameters="PL00WST" />
+				<input source="INTERNAL" parameters="PL00WTZ" />
+				<input source="INTERNAL" parameters="PL00ISL" />
+				<input source="INTERNAL" parameters="PL00ISZ" />
+				<input source="INTERNAL" parameters="PL00IFB" />
+				<input source="INTERNAL" parameters="PL00IXB" />
+				<input source="INTERNAL" parameters="PL00IPB" />
+				<input source="INTERNAL" parameters="PL00ISB" />
+            </output>
+            <output destination="INTERNAL" parameters="ISPRESSUREHIGH" expression="(x1 &gt; x2) or (x3 &gt; x2)">
+            </output>
+        </action>
+    </state>
+    <state name="Reset Counter" parameters="{:.3f}" bounds="100,250,100,50">
+		<transition expression="True" nextState="1">
+        </transition>
+        <action when="WITHIN_STATE" expression="True">
+            <output destination="SETTING" parameters="P:L00IXV,0" expression="y:=x1">
+				<input source="INTERNAL" parameters="PL00IXV" />
+            </output>
+            <output destination="INTERNAL" parameters="COUNTER" expression="y:=0">
+            </output>
+        </action>
+    </state>
+    <state name="Increment Counter" parameters="{:.3f}" bounds="400,250,140,50">
+		<transition expression="x1 &gt; x2" nextState="1">
+			<input source="INTERNAL" parameters="COUNTER" />
+			<input source="INTERNAL" parameters="PMAXCNT" />
+        </transition>
+		<transition expression="x1 &lt; x2" nextState="5">
+			<input source="INTERNAL" parameters="COUNTER" />
+			<input source="INTERNAL" parameters="PMAXCNT" />
+        </transition>
+        <action when="WITHIN_STATE" expression="True">
+            <output destination="INTERNAL" parameters="COUNTER" expression="y:= x1 + 1">
+				<input source="INTERNAL" parameters="COUNTER" />
+           </output>
+        </action>
+        <action when="ON_EXITING_STATE" expression="x1 == x2">
+			<input source="INTERNAL" parameters="COUNTER" />
+			<input source="INTERNAL" parameters="PMAXCNT" />
+            <output destination="SETTING" parameters="P:L00IXV,0" expression="y:= 0">
+            </output>
+        </action>
+    </state>
+    <state name="Ramp Down" parameters="{:.3f}" bounds="250,350,100,50">
+ 		<transition expression="x1 &lt; x2" nextState="6">
+			<input source="INTERNAL" parameters="STEPS" />
+			<input source="INTERNAL" parameters="NUM_STEPS" />
+        </transition>
+        <action when="ON_ENTERING_STATE" expression="True">
+            <output destination="INTERNAL" parameters="START_RAMP_TIME" expression="y:= time">
+            </output>
+            <output destination="INTERNAL" parameters="STEPS" expression="y:= 1">
+            </output>
+            <output destination="INTERNAL" parameters="NUM_STEPS" expression="y:= 20">
+            </output>
+            <output destination="INTERNAL" parameters="FILAMENT_VALUE" expression="y:= x1">
+				<input source="READING" parameters="P:L00IFI.SETTING,0" />
+            </output>
+        </action>
+        <action when="WITHIN_STATE" expression="True">
+            <output destination="INTERNAL" parameters="DELTA_TIME" expression="y:= (time - x1)/1000">
+				<input source="INTERNAL" parameters="START_RAMP_TIME" />
+            </output>
+         </action>
+        <action when="WITHIN_STATE" expression="x1 &gt; 1">
+			<input source="INTERNAL" parameters="DELTA_TIME" />
+            <output destination="SETTING" parameters="P:L00IFI,0" expression="d := x3/x2; v := x3 - ( x1* d ); last := x1 == x2; y := ( not last ) * v">
+				<input source="INTERNAL" parameters="STEPS" />
+				<input source="INTERNAL" parameters="NUM_STEPS" />
+				<input source="INTERNAL" parameters="FILAMENT_VALUE" />
+            </output>
+            <output destination="INTERNAL" parameters="START_RAMP_TIME" expression="y:= time">
+            </output>
+            <output destination="INTERNAL" parameters="STEPS" expression="y:= x1 + 1">
+				<input source="INTERNAL" parameters="STEPS" />
+           </output>
+        </action>
+    </state>
+    <state name="Exit" parameters="{:.3f}" bounds="250,450,100,50">
+        <transition expression="True" nextState="1">
+        </transition>
+        <action when="WITHIN_STATE" expression="True">
+            <output destination="SETTING" parameters="P:L00IBV,0" expression="y:= 0">
+            </output>
+            <output destination="SETTING" parameters="P:L00IXV,0" expression="y:= 0">
+            </output>
+            <output destination="SETTING" parameters="P:L00IAV,0" expression="y:= 0">
+            </output>
+            <output destination="SETTING" parameters="P:L00PLV,0" expression="y:= 0">
+            </output>
+        </action>
+    </state>
+ </fsm>
