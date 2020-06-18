@@ -42,7 +42,7 @@
 				<input source="READING" parameters="P:MAXCNT,0" />
             </output>
             <output destination="INTERNAL" parameters="PISSTAT" expression="y:=x1">
-				<input source="READING" parameters="P:ISSTAT.STATUS,0" />
+				<input source="READING" parameters="P:ISSTAT.STATUS.RAW,0" />
             </output>
             <output destination="INTERNAL" parameters="PL00WST" expression="y:=x1">
 				<input source="READING" parameters="P:L00WSL,0" />

@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- saved from url=(0014)about:internet -->
+<fsm name="Setting Demo" startState="0" endState="-1" parameters="1000" layout = "Rectangle" bounds="400,400">
+	<state name="Waiting" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 &gt; 30" nextState="1">
+				<input source="READING" parameters="G:SCTIME,0" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "x1">
+				<input source="READING" parameters="Z:CACHE1,0" />
+			</output>
+		</action>
+	</state>
+	<state name="Countdown" parameters="{:.3f}" bounds="0,0,100,50" >
+		<transition expression = "x1 &lt; 5" nextState="0">
+			<input source="READING" parameters="G:SCTIME,0" />
+		</transition>
+		<action when = "WITHIN_STATE" expression="True">
+			<output destination="DISPLAY" parameters="OUTPUT" expression = "60 - x1">
+				<input source="READING" parameters="G:SCTIME,0" />
+			</output>
+			<output destination="SETTING" parameters="Z:CACHE1,0" expression = "60 - x1">
+				<input source="READING" parameters="G:SCTIME,0" />
+			</output>
+		</action>
+	</state>
+	
+</fsm>

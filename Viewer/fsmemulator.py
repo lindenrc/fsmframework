@@ -80,7 +80,7 @@ class FsmOutput:
 		self.parameters = parameters
 		self.expression = FsmExpression(expressionString)
 		self.internalMap = {}
-		self.settingValuesList = []
+		self.settingMap = []
 		self.displayMap = {}
 	
 	def addInput(self, input):
@@ -95,7 +95,8 @@ class FsmOutput:
 		elif self.destination == 'DISPLAY':
 			self.displayMap[self.parameters[0]] = result
 		elif self.destination == 'SETTING':
-			self.settingValuesList.append(parameters[1]+":"+result)
+			id = len(self.settingMap)
+			self.settingMap[id] = str(self.parameters[1])+","+str(result)
 
 class FsmAction:
 	def __init__(self, when, conditionString):
@@ -163,7 +164,7 @@ class FsmEmulator:
 		self.states = []
 		self.readingList = []
 		self.settingList = []
-		self.settingValuesList = []
+		self.settingMap = {}
 		self.deviceMap = {}
 		self.internalMap = {}
 		self.inputMap = {}
@@ -296,17 +297,16 @@ class FsmEmulator:
 		for output in outputList:
 			output.internalMap = self.internalMap
 	
-		tag = 0
 		outputList = self.getAllOutputs('SETTING')
 		for output in outputList:
-			device = output.parameters[0]
+			device = output.parameters[0]+'.SETTING@e,ff'
 			if device in self.settingList:
 				output.parameters[1] = self.settingList.index(device)
 			else:
 				output.parameters[1] = tag
 				tag = tag + 1
 				self.settingList.append(device)
-			output.settingValuesList = self.settingValuesList
+			output.settingMap = self.settingMap
 	
 		for state_index in range( len(self.states) ):
 			outputList = self.getStateOutputs(state_index, 'DISPLAY')
@@ -376,7 +376,7 @@ def getSupercycleDemo():
 	
 	s_act = FsmAction('WITHIN_STATE', 'True')
 	s_out = FsmOutput('DISPLAY', ["Output"], 'y := x1')
-	s_in = FsmInput("READING", ["P:ISSTAT.STATUS.RAW","0"])
+	s_in = FsmInput("READING", ["G:SCTIME","0"])
 	s_out.addInput(s_in)
 
 	s_act.addOutput(s_out)

@@ -20,8 +20,10 @@ class FsmFrame(threading.Thread):
 		self.dsp = 0
 		self.canvas = 0
 		self.widgets = []
-		self.isLoaded = False
-		self.isStarted = False
+		self.state = 'INIT_FSM'
+		self.isRunning = True
+		self.isStopped = False
+		self.areSettingsEnabled = False
 		self.start()
 
 	def callback(self):
@@ -29,7 +31,6 @@ class FsmFrame(threading.Thread):
 
 	def loadDemo(self):
 	
-		self.isLoaded = True
 		self.fsm = getSupercycleDemo()
 		self.fsm.setup()
 		self.dsp = FsmDisplay(self.fsm.name, 'Rectangle', [400, 400])
@@ -43,9 +44,10 @@ class FsmFrame(threading.Thread):
 		self.drawStates()
 		self.drawInputs()
 		
+		self.state = 'LOAD_FSM'
+		
 	def loadFsm(self):
 		
-		self.isLoaded = True
 		self.deleteWidgets()
 		filename = askopenfilename()
 		result = parse(filename)
@@ -60,22 +62,31 @@ class FsmFrame(threading.Thread):
 		self.drawTransitions()
 		self.drawStates()
 		self.drawInputs()
+		
+		self.state = 'LOAD_FSM'
 	
 	def deleteWidgets(self):
 		for widget in self.widgets:
-			self.canvas.delete(widget)
+			widget.destroy()
 		self.widgets = []
 		self.canvas.delete('all')
 		self.canvas.destroy()
 			
 	def startFsm(self):
-		if self.isLoaded:
-			self.isStarted = True
+		if self.state == 'LOAD_FSM':
+			self.state = 'RUN_FSM'
 		else:
 			print('No Displays Loaded')
 		
 	def stopFsm(self):
-		print('Stop Fsm')
+		self.isStopped = True
+		
+	def toggleSettings(self):
+		self.areSettingsEnabled = not self.areSettingsEnabled
+		utext = 'Settings Disabled'
+		if self.areSettingsEnabled:
+			utext = 'Settings Enabled'
+		self.toggle.config(text=utext)
 		
 	def showTransition(self, from_index, to_index):
 		if from_index != to_index and from_index >= 0:
@@ -204,6 +215,8 @@ class FsmFrame(threading.Thread):
 		start.pack(side=tk.LEFT)
 		stop = tk.Button(top, text="Stop Fsm", command = self.stopFsm)
 		stop.pack(side=tk.LEFT)
+		self.toggle = tk.Button(top, text="Settings Disabled", command = self.toggleSettings)
+		self.toggle.pack(side=tk.LEFT)
 		
 		self.loadDemo()
 		
@@ -212,47 +225,77 @@ class FsmFrame(threading.Thread):
 
 async def my_app(con):
 
-	
-    # Setup context
-
-	async with acsys.dpm.DPMContext(con) as dpm:
-
-        # Add acquisition requests
-		fsm = fsmFrame.fsm
+	fsm = 0
+	while fsmFrame.isRunning:
 		
-		count = 0
-		for device in fsm.readingList:
-			await dpm.add_entry(count, device)
-			count = count + 1
+		if fsmFrame.state == 'INIT_FSM':
+			time.sleep(1)
+		elif fsmFrame.state == 'LOAD_FSM':
+			fsm = fsmFrame.fsm
+			time.sleep(1)
+		elif fsmFrame.state == 'RUN_FSM':
+
+			fsm = fsmFrame.fsm
+			try:
 			
-		count = 0
-		for device in fsm.settingList:
-			count = count + 1
-			
-        # Start acquisition
+				async with acsys.dpm.DPMContext(con) as dpm:
 
-		await dpm.start()
-
-        # Process incoming data
-
-		fsmFrame.showTransition(fsm.previousState, fsm.currentState)
+					while fsmFrame.isRunning:
 		
-		async for ii in dpm:
-			if isinstance(ii, acsys.dpm.ItemData):
-				print(str(ii))
-				#fsm.setDevice( ii.tag, ii.data )
-			fsm.execute()
-			for device in fsm.settingValuesList:
-				split = device.split(',')
-				tag = split[0]
-				value = split[1]
-			fsm.settingValuesList = []
+						if fsmFrame.state == 'INIT_FSM':
+							time.sleep(1)
+						elif fsmFrame.state == 'LOAD_FSM':
+							fsm = fsmFrame.fsm
+							time.sleep(1)
+						elif fsmFrame.state == 'RUN_FSM':
+							try:
+								count = 0
+								for device in fsm.readingList:
+									await dpm.add_entry(count, device)
+									count = count + 1
 			
-			fsmFrame.showTransition(fsm.previousState, fsm.currentState)
-			if fsm.previousState != fsm.currentState:
-				fsmFrame.showOutput(fsm.previousState, fsm.states[fsm.previousState].displayMap)			
-			fsmFrame.showOutput(fsm.currentState, fsm.states[fsm.currentState].displayMap)
+								for device in fsm.settingList:
+									await dpm.add_entry(count, device)
+									count = count + 1
+											
+								await dpm.start()
 
+								fsmFrame.showTransition(fsm.previousState, fsm.currentState)
+				
+								async for ii in dpm:
+									if fsmFrame.isStopped:
+										fsmFrame.isStopped = False
+										fsmFrame.state = 'LOAD_FSM'
+										await dpm.clear_list()
+										await dpm.stop()
+										break
+									if isinstance(ii, acsys.dpm.ItemData):
+										fsm.setDevice( ii.tag, ii.data )
+									fsm.execute()
+									
+									if fsmFrame.areSettingsEnabled:
+										for id,device in fsm.settingMap.items():
+											split = device.split(',')
+											tag = split[0]
+											value = split[1]
+											await dpm.apply_settings([(tag,value)])
+									fsm.settingMap.clear()
+			
+									fsmFrame.showTransition(fsm.previousState, fsm.currentState)
+									if fsm.previousState != fsm.currentState:
+										fsmFrame.showOutput(fsm.previousState, fsm.states[fsm.previousState].displayMap)			
+									fsmFrame.showOutput(fsm.currentState, fsm.states[fsm.currentState].displayMap)
+						
+							except Exception as e:
+								print('Runtime Exception: ', str(e) )
+								fsmFrame.state = 'LOAD_FSM'
+								
+			except Exception as e1:
+						print('Startup Exception', str(e1) )
+						fsmFrame.state = 'LOAD_FSM'
+
+				
+       
 
 #Launch FsmViewer
 
@@ -264,8 +307,6 @@ log.setLevel(logging.INFO)
 
 
 fsmFrame = FsmFrame()
-
-while not fsmFrame.isStarted:
+while fsmFrame.state != 'RUN_FSM':
 	time.sleep(1)
-	
 acsys.run_client(my_app)
